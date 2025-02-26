@@ -150,7 +150,7 @@ public class MainActivity extends AppCompatActivity {
         File.setVisibility(View.VISIBLE);
     }
     public void MenuTurnOn(View view){
-        File.setEnabled(false); // Делаем FrameLayout неактивным
+        File.setEnabled(false);
         Menu.setVisibility(View.VISIBLE);
     }
     public void InSettings(View view){
@@ -232,8 +232,8 @@ public class MainActivity extends AppCompatActivity {
         Menu.setVisibility(View.INVISIBLE);
         File.setVisibility(View.INVISIBLE);
         Soderz.setVisibility(View.VISIBLE);
-        PustotaBook();
-        book_list.clear();
+        PustotaBook(); // заменяет текст книг нак пробел
+        book_list.clear(); // очищает список книг
         index = 0;
         Findebooks();
     }
@@ -244,8 +244,8 @@ public class MainActivity extends AppCompatActivity {
         try {
             Cursor query = db.rawQuery("SELECT * FROM book WHERE NameBook = ?", new String[]{Book});
             while (query.moveToNext()) {
-                String LinkBook = query.getString(1);
-                System.out.println(LinkBook);
+                String LinkBook = query.getString(1); // получение адреса книги из бд с именим книги на которую нажал пользователь
+                System.out.println(LinkBook); // проверка на работу
             }
             query.close();
             // Здесь должна вызываться функция которая запускает открывание файла (Переменная Book глобальная)
