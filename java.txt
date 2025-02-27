@@ -1,0 +1,202 @@
+package com.example.myapplication;
+
+import static android.content.ContentValues.TAG;
+import android.content.ContentValues;
+import android.content.Context;
+import android.content.Intent;
+import android.database.Cursor;
+import android.os.Bundle;
+import android.util.Log;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.Button;
+import android.widget.CursorAdapter;
+import android.widget.FrameLayout;
+import androidx.activity.EdgeToEdge;
+import androidx.appcompat.app.AppCompatActivity;
+import android.net.Uri;
+import android.widget.ListView;
+import android.widget.TextView;
+import android.widget.Toast;
+import android.database.sqlite.SQLiteDatabase;
+import androidx.documentfile.provider.DocumentFile;
+
+class MyCursorAdapter extends CursorAdapter {
+
+    // Конструктор адаптера
+    public MyCursorAdapter(Context context, Cursor cursor) {
+        super(context, cursor, 0);
+    }
+
+    // Метод для создания нового представления (View)
+    @Override
+    public View newView(Context context, Cursor cursor, ViewGroup parent) {
+        LayoutInflater inflater = LayoutInflater.from(context); //преобразование XML-разметки в объекты View
+        return inflater.inflate(R.layout.custom_adapter, parent, false); // Используем ваш собственный макет
+    }
+
+    // Метод для привязки данных к существующему представлению
+    @Override
+    public void bindView(View view, Context context, Cursor cursor) {
+        TextView customNameBook = view.findViewById(R.id.customNameBook);
+        TextView customLinkToFile = view.findViewById(R.id.customLinkToFile);
+
+        // Получаем данные из курсора
+        String nameBook = cursor.getString(cursor.getColumnIndexOrThrow("nameBook"));
+        String linkToFile = cursor.getString(cursor.getColumnIndexOrThrow("linkToFile"));
+
+        // Устанавливаем данные в TextView
+        customNameBook.setText(nameBook);
+        customLinkToFile.setText(linkToFile);
+    }
+}
+
+
+public class MainActivity extends AppCompatActivity {
+    private static final int REQUEST_CODE_OPEN_DOCUMENT = 1;
+    private Button firstBook, menuTurnOnButton, outSettingsButton, outSoderzButton, inSettingsButton, inSoderzButton;
+    private ListView listView;
+    private FrameLayout file, menu, settings, soderz;
+    private SQLiteDatabase db;
+    private Log log = null;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        EdgeToEdge.enable(this);
+        setContentView(R.layout.activity_main);
+        firstBook = findViewById(R.id.firstBook);
+        menuTurnOnButton = findViewById(R.id.menuTurnOnButtonBook);
+        file = findViewById(R.id.file);
+        menu = findViewById(R.id.menu);
+        settings = findViewById(R.id.settings);
+        soderz = findViewById(R.id.soderz);
+        outSettingsButton = findViewById(R.id.outSettingsButton);
+        outSoderzButton = findViewById(R.id.outSoderzButton);
+        inSettingsButton = findViewById(R.id.inSettingsButton);
+        inSoderzButton = findViewById(R.id.inSoderzButton);
+        listView = findViewById(R.id.listView);
+        openFile();
+        db = getBaseContext().openOrCreateDatabase("app.db", MODE_PRIVATE, null);
+        db.execSQL("CREATE TABLE IF NOT EXISTS book(_id INTEGER PRIMARY KEY AUTOINCREMENT, nameBook TEXT, linkToFile TEXT)");
+        /*db.execSQL("DROP TABLE book");*/
+    }
+    
+    public void openFile() {
+        firstBook.setOnClickListener(v -> openFileChooser());
+    }
+        //открывает выбранный файл
+    private void openFileChooser() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("*/*");
+        startActivityForResult(intent, REQUEST_CODE_OPEN_DOCUMENT);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        if (requestCode == REQUEST_CODE_OPEN_DOCUMENT && resultCode == RESULT_OK) {
+            if (data != null) {
+                Uri uri = data.getData();
+                String fileType = getContentResolver().getType(uri);
+
+                if (fileType != null &&
+                        (fileType.equals("application/pdf") ||
+                                fileType.equals("application/vnd.openxmlformats-officedocument.wordprocessingml.document") ||
+                                fileType.equals("text/plain") ||
+                                fileType.equals("application/epub+zip") ||
+                                fileType.equals("application/x-fictionbook+xml"))) {
+            //код для if начинается тут:
+                    Toast.makeText(this, "Файл успешно выбран: " + uri.toString(), Toast.LENGTH_SHORT).show();
+                    DocumentFile documentFile = DocumentFile.fromSingleUri(this, uri);
+                    String path = getPathFromDocumentUri(documentFile);
+
+                    if (path != null) {
+                        Toast.makeText(this, "Имя файла: " + path, Toast.LENGTH_SHORT).show();
+                        ContentValues values = new ContentValues();
+                        values.put("nameBook", path); // Укажите правильное имя столбца
+                        values.put("linkToFile", uri.toString()); // Укажите правильное имя столбца
+
+                        // Вставляем данные в таблицу book
+                        long newRowId = db.insert("book", null, values);
+                        if (newRowId == -1) {
+                            Toast.makeText(this, "Ошибка при вставке в базу данных", Toast.LENGTH_SHORT).show();
+                        } else {
+                            Toast.makeText(this, "Файл успешно добавлен в базу данных", Toast.LENGTH_SHORT).show();
+                        }
+                    } else {
+                        Toast.makeText(this, "Не удалось получить путь к файлу.", Toast.LENGTH_SHORT).show();
+                    }
+                } else {
+                    Toast.makeText(this, "Неподдерживаемый тип файла", Toast.LENGTH_SHORT).show();
+                }
+            }
+        }
+    }
+
+
+
+    private String getPathFromDocumentUri(DocumentFile documentFile) {
+        try {
+            return documentFile.getName();
+        } catch (Exception e) {
+            Log.e(TAG, "Ошибка при получении имени файла: ", e);
+            return null;
+        }
+    }
+
+    public void menuTurnOff(View view) {
+        file.setEnabled(true);
+        menu.setVisibility(View.INVISIBLE);
+        file.setVisibility(View.VISIBLE);
+    }
+
+    public void menuTurnOn(View view) {
+        file.setEnabled(false);
+        menu.setVisibility(View.VISIBLE);
+    }
+
+    public void inSettings(View view) {
+        menu.setVisibility(View.INVISIBLE);
+        file.setVisibility(View.INVISIBLE);
+        settings.setVisibility(View.VISIBLE);
+    }
+
+    public void outSettings(View view) {
+        settings.setVisibility(View.INVISIBLE);
+        file.setVisibility(View.VISIBLE);
+        menu.setVisibility(View.VISIBLE);
+    }
+
+
+    public void inSoderz(View view) {
+        Cursor cursor = null;
+        try {
+            cursor = db.rawQuery("SELECT _id, nameBook, linkToFile FROM book", null);
+
+            if (cursor != null && cursor.getCount() > 0) {
+                MyCursorAdapter adapter = new MyCursorAdapter(this, cursor);
+                listView.setAdapter(adapter);
+                startManagingCursor(cursor); // Управляем курсором
+            } else {
+                Toast.makeText(this, "Нет доступных книг", Toast.LENGTH_SHORT).show();
+            }
+        } catch (Exception e) {
+            Log.e("DatabaseError", "Ошибка запроса: " + e.getMessage());
+        } finally {
+            // Не закрываем курсор здесь, так как он будет закрыт автоматически
+            menu.setVisibility(View.INVISIBLE);
+            file.setVisibility(View.INVISIBLE);
+            soderz.setVisibility(View.VISIBLE);
+        }
+    }
+
+    public void outSoderz(View view) {
+        soderz.setVisibility(View.INVISIBLE);
+        file.setVisibility(View.VISIBLE);
+        menu.setVisibility(View.VISIBLE);
+    }
+}
